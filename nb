@@ -2612,9 +2612,11 @@ _string_is_url() {
 # Usage:
 #   describe <name> <description>
 #   describe --get <name>
+#   describe --all
 #
 # Options:
 #   --get  Print the description for <name> if one has been set.
+#   --all  Print all descriptions in ASCII Delimited Text.
 #
 # Examples:
 # ```
@@ -2627,6 +2629,8 @@ _string_is_url() {
 # HEREDOC
 #
 # describe --get "list"
+#
+# describe --all
 # ```
 #
 # Set or print a description for a specified command or function <name>. The
@@ -2637,6 +2641,10 @@ _string_is_url() {
 #
 # When the `--get` option is used, the description for <name> is printed, if
 # one has been set.
+#
+# When the `--all` option is used, all descriptions are printed at once with
+# ASCII Delimited Text format.
+# https://ronaldduncan.wordpress.com/2009/10/31/text-file-formats-ascii-delimited-text-not-csv-or-tab-delimited-text/
 describe() {
   set +e
   [[ -z "${1:-}" ]] &&
@@ -2656,15 +2664,26 @@ describe() {
     else
       printf "No additional information for \`%s\`\\n" "${_name}"
     fi
+  elif [[ "${1}" == "--all" ]]
+  then # getAll ---------------------------------------------------------------
+    (
+      # \036 means Record Separator (RS). Each record has help for each command.
+      IFS=$'\036'
+      printf "%s" "${_ALL_DESCRIPTIONS[*]}"
+    )
   else # set ------------------------------------------------------------------
+    local _describe_var="____describe_${1}"
     if [[ -n "${2:-}" ]]
     then # argument is present
-      read -r -d '' "____describe_${1}" <<HEREDOC
+      read -r -d '' "${_describe_var}" <<HEREDOC
 ${2}
 HEREDOC
     else # no argument is present, so assume piped input
-      read -r -d '' "____describe_${1}"
+      read -r -d '' "${_describe_var}"
     fi
+    # store all descriptions for completion.
+    # \037 means Unit Separator (US). Each unit has command and description.
+    _ALL_DESCRIPTIONS=("${_ALL_DESCRIPTIONS[@]+"${_ALL_DESCRIPTIONS[@]}"}" "${1}"$'\037'"${!_describe_var}")
   fi
   set -e
 }
